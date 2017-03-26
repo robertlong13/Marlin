@@ -8658,6 +8658,18 @@ void process_next_command() {
           gcode_M0_M1();
           break;
       #endif // ULTIPANEL
+      
+      case 3:   //BOB: adds M3 (spindle on, CW)
+        stepper.synchronize();
+        pinMode(57, OUTPUT);
+        digitalWrite(57, HIGH);
+        break;
+        
+      case 5:   //BOB: adds M5 (spindle off)
+        stepper.synchronize();
+        pinMode(57, OUTPUT);
+        digitalWrite(57, LOW);
+        break;
 
       case 17: // M17: Enable all stepper motors
         gcode_M17();
@@ -10027,7 +10039,10 @@ void prepare_move_to_destination() {
     if (mm_of_travel < 0.001) return;
 
     uint16_t segments = floor(mm_of_travel / (MM_PER_ARC_SEGMENT));
-    if (segments == 0) segments = 1;
+    // Ensure that a minimum theta_per_segment is achieved for small radii. This ensures a full circle will always have >= 62 sides.
+    if (segments < 10*abs(angular_travel)) {
+        segments = 10*abs(angular_travel);
+    }
 
     /**
      * Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
