@@ -33,7 +33,7 @@
   #include "planner.h"
   #include "ultralcd.h"
 
-  #include <avr/io.h>
+  #include <math.h>
 
   void lcd_babystep_z();
   void lcd_return_to_status();
@@ -300,7 +300,7 @@
 
   int ubl_eeprom_start = -1;
   bool ubl_has_control_of_lcd_panel = false;
-  volatile uint8_t ubl_encoderDiff = 0; // Volatile because it's changed by Temperature ISR button update
+  volatile int8_t ubl_encoderDiff = 0; // Volatile because it's changed by Temperature ISR button update
 
   // The simple parameter flags and values are 'static' so parameter parsing can be in a support routine.
   static int g29_verbose_level = 0, phase_value = -1, repetition_cnt = 1,
@@ -496,9 +496,8 @@
           SERIAL_ECHO_START;
           SERIAL_ECHOLNPGM("Checking G29 has control of LCD Panel:");
           wait_for_user = true;
-          while (wait_for_user) {
-            idle();
-            delay(250);
+          while (!ubl_lcd_clicked()) {
+            safe_delay(250);
             SERIAL_ECHO((int)ubl_encoderDiff);
             ubl_encoderDiff = 0;
             SERIAL_EOL;
@@ -644,7 +643,7 @@
           }
         }
         ubl_has_control_of_lcd_panel = false;
-        delay(20); // We don't want any switch noise.
+        safe_delay(20); // We don't want any switch noise.
 
         ubl.state.z_offset = measured_z;
 
@@ -734,7 +733,7 @@
         }
         ubl_has_control_of_lcd_panel = false;
         restore_ubl_active_state_and_leave();
-        delay(50);  // Debounce the Encoder wheel
+        safe_delay(50);  // Debounce the Encoder wheel
         return;
       }
 
@@ -748,7 +747,7 @@
           goto LEAVE;
         }
         const float measured_z = probe_pt(xProbe, yProbe, stow_probe, g29_verbose_level);
-        z_values[location.x_index][location.y_index] = measured_z + Z_PROBE_OFFSET_FROM_EXTRUDER;
+        z_values[location.x_index][location.y_index] = measured_z + zprobe_zoffset;
       }
 
       if (do_ubl_mesh_map) ubl.display_map(map_type);
@@ -1108,9 +1107,12 @@
     statistics_flag++;
 
     SERIAL_PROTOCOLPGM("Unified Bed Leveling System Version 1.00 ");
-    ubl.state.active ? SERIAL_PROTOCOLCHAR('A') : SERIAL_PROTOCOLPGM("In");
+    if (ubl.state.active)  
+      SERIAL_PROTOCOLCHAR('A');
+    else
+      SERIAL_PROTOCOLPGM("In");
     SERIAL_PROTOCOLLNPGM("ctive.\n");
-    delay(50);
+    safe_delay(50);
 
     if (ubl.state.eeprom_storage_slot == -1)
       SERIAL_PROTOCOLPGM("No Mesh Loaded.");
@@ -1120,6 +1122,7 @@
       SERIAL_PROTOCOLPGM(" Loaded.");
     }
     SERIAL_EOL;
+    safe_delay(50);
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
       SERIAL_PROTOCOLPAIR("g29_correction_fade_height : ", ubl.state.g29_correction_fade_height);
@@ -1129,11 +1132,13 @@
     SERIAL_PROTOCOLPGM("z_offset: ");
     SERIAL_PROTOCOL_F(ubl.state.z_offset, 6);
     SERIAL_EOL;
+    safe_delay(50);
 
     SERIAL_PROTOCOLPGM("X-Axis Mesh Points at: ");
     for (uint8_t i = 0; i < UBL_MESH_NUM_X_POINTS; i++) {
       SERIAL_PROTOCOL_F( ubl.map_x_index_to_bed_location(i), 1);
       SERIAL_PROTOCOLPGM("  ");
+      safe_delay(50);
     }
     SERIAL_EOL;
 
@@ -1141,6 +1146,7 @@
     for (uint8_t i = 0; i < UBL_MESH_NUM_Y_POINTS; i++) {
       SERIAL_PROTOCOL_F( ubl.map_y_index_to_bed_location(i), 1);
       SERIAL_PROTOCOLPGM("  ");
+      safe_delay(50);
     }
     SERIAL_EOL;
 
@@ -1149,11 +1155,13 @@
       SERIAL_PROTOCOLLNPAIR("  state:", READ(KILL_PIN));
     #endif
     SERIAL_EOL;
+    safe_delay(50);
 
     SERIAL_PROTOCOLLNPAIR("ubl_state_at_invocation :", ubl_state_at_invocation);
     SERIAL_EOL;
     SERIAL_PROTOCOLLNPAIR("ubl_state_recursion_chk :", ubl_state_recursion_chk);
     SERIAL_EOL;
+    safe_delay(50);
     SERIAL_PROTOCOLPGM("Free EEPROM space starts at: 0x");
     prt_hex_word(ubl_eeprom_start);
     SERIAL_EOL;
@@ -1161,34 +1169,42 @@
     SERIAL_PROTOCOLPGM("end of EEPROM              : ");
     prt_hex_word(E2END);
     SERIAL_EOL;
+    safe_delay(50);
 
     SERIAL_PROTOCOLLNPAIR("sizeof(ubl) :  ", (int)sizeof(ubl));
     SERIAL_EOL;
     SERIAL_PROTOCOLLNPAIR("z_value[][] size: ", (int)sizeof(z_values));
     SERIAL_EOL;
+    safe_delay(50);
 
     SERIAL_PROTOCOLPGM("EEPROM free for UBL: 0x");
     prt_hex_word(k);
     SERIAL_EOL;
+    safe_delay(50);
 
     SERIAL_PROTOCOLPGM("EEPROM can hold 0x");
     prt_hex_word(k / sizeof(z_values));
     SERIAL_PROTOCOLLNPGM(" meshes.\n");
+    safe_delay(50);
 
     SERIAL_PROTOCOLPGM("sizeof(ubl.state) :");
     prt_hex_word(sizeof(ubl.state));
 
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_NUM_X_POINTS  ", UBL_MESH_NUM_X_POINTS);
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_NUM_Y_POINTS  ", UBL_MESH_NUM_Y_POINTS);
+    safe_delay(50);
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_MIN_X         ", UBL_MESH_MIN_X);
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_MIN_Y         ", UBL_MESH_MIN_Y);
+    safe_delay(50);
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_MAX_X         ", UBL_MESH_MAX_X);
     SERIAL_PROTOCOLPAIR("\nUBL_MESH_MAX_Y         ", UBL_MESH_MAX_Y);
+    safe_delay(50);
     SERIAL_PROTOCOLPGM("\nMESH_X_DIST        ");
     SERIAL_PROTOCOL_F(MESH_X_DIST, 6);
     SERIAL_PROTOCOLPGM("\nMESH_Y_DIST        ");
     SERIAL_PROTOCOL_F(MESH_Y_DIST, 6);
     SERIAL_EOL;
+    safe_delay(50);
 
     if (!ubl.sanity_check())
       SERIAL_PROTOCOLLNPGM("Unified Bed Leveling sanity checks passed.");
@@ -1294,7 +1310,7 @@
 
 	  if (far_flag) {                                    // If doing the far_flag action, we want to be as far as possible
             for (k = 0; k < UBL_MESH_NUM_X_POINTS; k++) {    // from the starting point and from any other probed points.  We
-              for (l = 0; j < UBL_MESH_NUM_Y_POINTS; l++) {  // want the next point spread out and filling in any blank spaces
+              for (l = 0; l < UBL_MESH_NUM_Y_POINTS; l++) {  // want the next point spread out and filling in any blank spaces
                 if ( !isnan(z_values[k][l])) {               // in the mesh.   So we add in some of the distance to every probed 
                   distance += (i-k)*(i-k)*MESH_X_DIST*.05;   // point we can find.
                   distance += (j-l)*(j-l)*MESH_Y_DIST*.05;
@@ -1350,15 +1366,12 @@
 
       do_blocking_move_to_z(Z_CLEARANCE_DEPLOY_PROBE);    // Move the nozzle to where we are going to edit
       do_blocking_move_to_xy(xProbe, yProbe);
-      float new_z = z_values[location.x_index][location.y_index] + 0.001;
-
-      round_off = (int32_t)(new_z * 1000.0 + 2.5); // we chop off the last digits just to be clean. We are rounding to the
-      round_off -= (round_off % 5L); // closest 0 or 5 at the 3rd decimal place.
+      float new_z = z_values[location.x_index][location.y_index];
+      
+      round_off = (int32_t)(new_z * 1000.0);    // we chop off the last digits just to be clean. We are rounding to the
       new_z = float(round_off) / 1000.0;
 
-      //SERIAL_ECHOPGM("Mesh Point Currently At:  ");
-      //SERIAL_PROTOCOL_F(new_z, 6);
-      //SERIAL_EOL;
+      ubl_has_control_of_lcd_panel = true;
 
       lcd_implementation_clear();
       lcd_mesh_edit_setup(new_z);
@@ -1367,20 +1380,20 @@
       do {
         new_z = lcd_mesh_edit();
         idle();
-      } while (wait_for_user);
+      } while (!ubl_lcd_clicked());
 
       lcd_return_to_status();
 
-      ubl_has_control_of_lcd_panel++; // There is a race condition for the Encoder Wheel getting clicked.
-                                      // It could get detected in lcd_mesh_edit (actually _lcd_mesh_fine_tune)
-                                      // or here.
+      ubl_has_control_of_lcd_panel = true; // There is a race condition for the Encoder Wheel getting clicked.
+                                           // It could get detected in lcd_mesh_edit (actually _lcd_mesh_fine_tune)
+                                           // or here.
 
       const millis_t nxt = millis() + 1500UL;
       while (ubl_lcd_clicked()) { // debounce and watch for abort
         idle();
         if (ELAPSED(millis(), nxt)) {
           lcd_return_to_status();
-          SERIAL_PROTOCOLLNPGM("\nFine Tuning of Mesh Stopped.");
+//        SERIAL_PROTOCOLLNPGM("\nFine Tuning of Mesh Stopped.");
           do_blocking_move_to_z(Z_CLEARANCE_DEPLOY_PROBE);
           lcd_setstatus("Mesh Editing Stopped", true);
 
@@ -1391,7 +1404,7 @@
         }
       }
 
-      delay(20);                       // We don't want any switch noise.
+      safe_delay(20);                       // We don't want any switch noise.
 
       z_values[location.x_index][location.y_index] = new_z;
 

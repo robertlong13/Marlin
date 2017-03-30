@@ -661,18 +661,12 @@ static bool send_ok[BUFSIZE];
   #define KEEPALIVE_STATE(n) ;
 #endif // HOST_KEEPALIVE_FEATURE
 
-#define DEFINE_PGM_READ_ANY(type, reader)       \
-  static inline type pgm_read_any(const type *p)  \
-  { return pgm_read_##reader##_near(p); }
-
-DEFINE_PGM_READ_ANY(float,       float)
-DEFINE_PGM_READ_ANY(signed char, byte)
+static inline float pgm_read_any(const float *p) { return pgm_read_float_near(p); }
+static inline signed char pgm_read_any(const signed char *p) { return pgm_read_byte_near(p); }
 
 #define XYZ_CONSTS_FROM_CONFIG(type, array, CONFIG) \
-  static const PROGMEM type array##_P[XYZ] =        \
-      { X_##CONFIG, Y_##CONFIG, Z_##CONFIG };     \
-  static inline type array(int axis)          \
-  { return pgm_read_any(&array##_P[axis]); }
+  static const PROGMEM type array##_P[XYZ] = { X_##CONFIG, Y_##CONFIG, Z_##CONFIG }; \
+  static inline type array(AxisEnum axis) { return pgm_read_any(&array##_P[axis]); }
 
 XYZ_CONSTS_FROM_CONFIG(float, base_min_pos,   MIN_POS)
 XYZ_CONSTS_FROM_CONFIG(float, base_max_pos,   MAX_POS)
@@ -848,12 +842,8 @@ static bool drain_injected_commands_P() {
     cmd[sizeof(cmd) - 1] = '\0';
     while ((c = cmd[i]) && c != '\n') i++; // find the end of this gcode command
     cmd[i] = '\0';
-    if (shove_and_echo_command(cmd)) {     // success?
-      if (c)                               // newline char?
-        injected_commands_P += i + 1;      // advance to the next command
-      else
-        injected_commands_P = NULL;        // nul char? no more commands
-    }
+    if (shove_and_echo_command(cmd))       // success?
+      injected_commands_P = c ? injected_commands_P + i + 1 : NULL; // next command or done
   }
   return (injected_commands_P != NULL);    // return whether any more remain
 }
@@ -6023,7 +6013,7 @@ inline void gcode_M81() {
       fanSpeeds[0] = 0;
     #endif
   #endif
-  delay(1000); // Wait 1 second before switching off
+  safe_delay(1000); // Wait 1 second before switching off
   #if HAS_SUICIDE
     stepper.synchronize();
     suicide();
@@ -7589,7 +7579,7 @@ inline void gcode_M503() {
     // Synchronize steppers and then disable extruders steppers for manual filament changing
     stepper.synchronize();
     disable_e_steppers();
-    delay(100);
+    safe_delay(100);
 
     millis_t nozzle_timeout = millis() + (millis_t)(FILAMENT_CHANGE_NOZZLE_TIMEOUT) * 1000L;
     bool nozzle_timed_out = false;
@@ -8112,7 +8102,7 @@ inline void gcode_M999() {
   inline void move_extruder_servo(uint8_t e) {
     const int angles[2] = SWITCHING_EXTRUDER_SERVO_ANGLES;
     MOVE_SERVO(SWITCHING_EXTRUDER_SERVO_NR, angles[e]);
-    delay(500);
+    safe_delay(500);
   }
 #endif
 
@@ -9397,12 +9387,12 @@ void ok_to_send() {
    * settings have been changed (e.g., by M665).
    */
   void recalc_delta_settings(float radius, float diagonal_rod) {
-    delta_tower[A_AXIS][X_AXIS] = -sin(RADIANS(60 - delta_tower_angle_trim[A_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_1), // front left tower
-    delta_tower[A_AXIS][Y_AXIS] = -cos(RADIANS(60 - delta_tower_angle_trim[A_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_1),
-    delta_tower[B_AXIS][X_AXIS] =  sin(RADIANS(60 + delta_tower_angle_trim[B_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_2), // front right tower
-    delta_tower[B_AXIS][Y_AXIS] = -cos(RADIANS(60 + delta_tower_angle_trim[B_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_2),
-    delta_tower[C_AXIS][X_AXIS] = -sin(RADIANS(     delta_tower_angle_trim[C_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_3), // back middle tower
-    delta_tower[C_AXIS][Y_AXIS] =  cos(RADIANS(     delta_tower_angle_trim[C_AXIS])) * (delta_radius + DELTA_RADIUS_TRIM_TOWER_3),
+    delta_tower[A_AXIS][X_AXIS] = -sin(RADIANS(60 - delta_tower_angle_trim[A_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_1); // front left tower
+    delta_tower[A_AXIS][Y_AXIS] = -cos(RADIANS(60 - delta_tower_angle_trim[A_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_1);
+    delta_tower[B_AXIS][X_AXIS] =  sin(RADIANS(60 + delta_tower_angle_trim[B_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_2); // front right tower
+    delta_tower[B_AXIS][Y_AXIS] = -cos(RADIANS(60 + delta_tower_angle_trim[B_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_2);
+    delta_tower[C_AXIS][X_AXIS] = -sin(RADIANS(     delta_tower_angle_trim[C_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_3); // back middle tower
+    delta_tower[C_AXIS][Y_AXIS] =  cos(RADIANS(     delta_tower_angle_trim[C_AXIS])) * (radius + DELTA_RADIUS_TRIM_TOWER_3);
     delta_diagonal_rod_2_tower[A_AXIS] = sq(diagonal_rod + delta_diagonal_rod_trim[A_AXIS]);
     delta_diagonal_rod_2_tower[B_AXIS] = sq(diagonal_rod + delta_diagonal_rod_trim[B_AXIS]);
     delta_diagonal_rod_2_tower[C_AXIS] = sq(diagonal_rod + delta_diagonal_rod_trim[C_AXIS]);
@@ -9805,33 +9795,42 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
     // gives the number of segments
     uint16_t segments = delta_segments_per_second * seconds;
 
-    // For SCARA minimum segment size is 0.5mm
+    // For SCARA minimum segment size is 0.25mm
     #if IS_SCARA
-      NOMORE(segments, cartesian_mm * 2);
+      NOMORE(segments, cartesian_mm * 4);
     #endif
 
     // At least one segment is required
     NOLESS(segments, 1);
 
     // The approximate length of each segment
-    float segment_distance[XYZE] = {
-            difference[X_AXIS] / segments,
-            difference[Y_AXIS] / segments,
-            difference[Z_AXIS] / segments,
-            difference[E_AXIS] / segments
-          };
+    const float inv_segments = 1.0 / float(segments),
+                segment_distance[XYZE] = {
+                  difference[X_AXIS] * inv_segments,
+                  difference[Y_AXIS] * inv_segments,
+                  difference[Z_AXIS] * inv_segments,
+                  difference[E_AXIS] * inv_segments
+                };
 
     // SERIAL_ECHOPAIR("mm=", cartesian_mm);
     // SERIAL_ECHOPAIR(" seconds=", seconds);
     // SERIAL_ECHOLNPAIR(" segments=", segments);
 
-    // Drop one segment so the last move is to the exact target.
-    // If there's only 1 segment, loops will be skipped entirely.
-    --segments;
+    #if IS_SCARA
+      // SCARA needs to scale the feed rate from mm/s to degrees/s
+      const float inv_segment_length = min(10.0, float(segments) / cartesian_mm), // 1/mm/segs
+                  feed_factor = inv_segment_length * _feedrate_mm_s;
+      float oldA = stepper.get_axis_position_degrees(A_AXIS),
+            oldB = stepper.get_axis_position_degrees(B_AXIS);
+    #endif
 
     // Get the logical current position as starting point
     float logical[XYZE];
     COPY(logical, current_position);
+
+    // Drop one segment so the last move is to the exact target.
+    // If there's only 1 segment, loops will be skipped entirely.
+    --segments;
 
     // Calculate and execute the segments
     for (uint16_t s = segments + 1; --s;) {
@@ -9841,13 +9840,37 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
       #else
         inverse_kinematics(logical);
       #endif
+
       ADJUST_DELTA(logical); // Adjust Z if bed leveling is enabled
-      planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], logical[E_AXIS], _feedrate_mm_s, active_extruder);
+
+      #if IS_SCARA
+        // For SCARA scale the feed rate from mm/s to degrees/s
+        // Use ratio between the length of the move and the larger angle change
+        const float adiff = abs(delta[A_AXIS] - oldA),
+                    bdiff = abs(delta[B_AXIS] - oldB);
+        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], logical[E_AXIS], max(adiff, bdiff) * feed_factor, active_extruder);
+        oldA = delta[A_AXIS];
+        oldB = delta[B_AXIS];
+      #else
+        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], logical[E_AXIS], _feedrate_mm_s, active_extruder);
+      #endif
     }
 
     // Since segment_distance is only approximate,
     // the final move must be to the exact destination.
-    planner.buffer_line_kinematic(ltarget, _feedrate_mm_s, active_extruder);
+
+    #if IS_SCARA
+      // For SCARA scale the feed rate from mm/s to degrees/s
+      // With segments > 1 length is 1 segment, otherwise total length
+      inverse_kinematics(ltarget);
+      ADJUST_DELTA(logical);
+      const float adiff = abs(delta[A_AXIS] - oldA),
+                  bdiff = abs(delta[B_AXIS] - oldB);
+      planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], logical[E_AXIS], max(adiff, bdiff) * feed_factor, active_extruder);
+    #else
+      planner.buffer_line_kinematic(ltarget, _feedrate_mm_s, active_extruder);
+    #endif
+
     return true;
   }
 
