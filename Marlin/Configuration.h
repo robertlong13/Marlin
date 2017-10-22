@@ -315,9 +315,13 @@
 
   // If you are using a pre-configured hotend then you can use one of the value sets by uncommenting it
   // Ultimaker
-  #define  DEFAULT_Kp 17.98 //MPCNC
-  #define  DEFAULT_Ki .98  //MPCNC
-  #define  DEFAULT_Kd 83.62 //MPCNC
+//  #define  DEFAULT_Kp 17.98 //MPCNC
+//  #define  DEFAULT_Ki .98  //MPCNC
+//  #define  DEFAULT_Kd 83.62 //MPCNC
+  #define  DEFAULT_Kp 11.64
+  #define  DEFAULT_Ki 0.60
+  #define  DEFAULT_Kd 56.93
+
 
   // MakerGear
   //#define  DEFAULT_Kp 7.0
@@ -549,16 +553,15 @@
 // For example an inductive probe, or a setup that uses the nozzle to probe.
 // An inductive probe must be deactivated to go below
 // its trigger-point if hardware endstops are active.
-//#define FIX_MOUNTED_PROBE
+#define FIX_MOUNTED_PROBE
 
 // The BLTouch probe emulates a servo probe.
 // The default connector is SERVO 0. Set Z_ENDSTOP_SERVO_NR below to override.
 //#define BLTOUCH
 
 // Z Servo Probe, such as an endstop switch on a rotating arm.
-#define Z_ENDSTOP_SERVO_NR 0   // BOB
-#define Z_SERVO_ANGLES {0,160} // Z Servo Deploy and Stow angles. BOB
-#define Z_MIN_PROBE_PIN 18     // BOB
+//#define Z_ENDSTOP_SERVO_NR 0   // BOB
+//#define Z_SERVO_ANGLES {0,160} // Z Servo Deploy and Stow angles. BOB
 
 // Enable if you have a Z probe mounted on a sled like those designed by Charles Bell.
 //#define Z_PROBE_SLED
@@ -585,9 +588,9 @@
 //    |           |
 //    O-- FRONT --+
 //  (0,0)
-#define X_PROBE_OFFSET_FROM_EXTRUDER 19  // X offset: -left  +right  [of the nozzle]
-#define Y_PROBE_OFFSET_FROM_EXTRUDER -7  // Y offset: -front +behind [the nozzle]
-#define Z_PROBE_OFFSET_FROM_EXTRUDER -6   // Z offset: -below +above  [the nozzle]
+#define X_PROBE_OFFSET_FROM_EXTRUDER 57      // X offset: -left  +right  [of the nozzle]
+#define Y_PROBE_OFFSET_FROM_EXTRUDER -8      // Y offset: -front +behind [the nozzle]
+#define Z_PROBE_OFFSET_FROM_EXTRUDER -0.65   // Z offset: -below +above  [the nozzle]
 
 // X and Y axis travel speed (mm/m) between probes
 #define XY_PROBE_SPEED 8000
@@ -626,7 +629,7 @@
 // Setting the wrong pin may have unexpected and potentially disastrous consequences.
 // Use with caution and do your homework.
 //
-//#define Z_MIN_PROBE_PIN X_MAX_PIN
+#define Z_MIN_PROBE_PIN 18     // BOB
 
 //
 // Enable Z_MIN_PROBE_ENDSTOP to use _both_ a Z Probe and a Z-min-endstop on the same machine.
@@ -657,8 +660,8 @@
  * Example: `M851 Z-5` with a CLEARANCE of 4  =>  9mm from bed to nozzle.
  *     But: `M851 Z+1` with a CLEARANCE of 2  =>  2mm from bed to nozzle.
  */
-#define Z_CLEARANCE_DEPLOY_PROBE   10 // Z Clearance for Deploy/Stow
-#define Z_CLEARANCE_BETWEEN_PROBES  5 // Z Clearance between probe points
+#define Z_CLEARANCE_DEPLOY_PROBE    5 // Z Clearance for Deploy/Stow
+#define Z_CLEARANCE_BETWEEN_PROBES  1 // Z Clearance between probe points
 
 //
 // For M851 give a range for adjusting the Z probe offset
@@ -715,17 +718,17 @@
 // @section machine
 
 // Travel limits after homing (units are in mm)
-#define X_MIN_POS -20   //BOB
+#define X_MIN_POS -100   //BOB
 #define Y_MIN_POS -20   //BOB
-#define Z_MIN_POS -10   //BOB
-#define X_MAX_POS 220   //BOB
+#define Z_MIN_POS  -1   //BOB
+#define X_MAX_POS 300   //BOB
 #define Y_MAX_POS 220   //BOB
 #define Z_MAX_POS 200
 
 // If enabled, axes won't move below MIN_POS in response to movement commands.
-// #define MIN_SOFTWARE_ENDSTOPS //MPCNC
+#define MIN_SOFTWARE_ENDSTOPS
 // If enabled, axes won't move above MAX_POS in response to movement commands.
-// #define MAX_SOFTWARE_ENDSTOPS //MPCNC
+#define MAX_SOFTWARE_ENDSTOPS
 
 /**
  * Filament Runout Sensor
@@ -787,8 +790,8 @@
  */
 //#define AUTO_BED_LEVELING_3POINT
 //#define AUTO_BED_LEVELING_LINEAR
-#define AUTO_BED_LEVELING_BILINEAR  // BOB
-//#define AUTO_BED_LEVELING_UBL
+//#define AUTO_BED_LEVELING_BILINEAR  // BOB
+#define AUTO_BED_LEVELING_UBL
 //#define MESH_BED_LEVELING
 
 /**
@@ -854,9 +857,9 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
 
-  #define UBL_MESH_INSET 1          // Mesh inset margin on print area
-  #define UBL_MESH_NUM_X_POINTS 10  // Don't use more than 15 points per axis, implementation limited.
-  #define UBL_MESH_NUM_Y_POINTS 10
+  #define UBL_MESH_INSET 20         // Mesh inset margin on print area
+  #define UBL_MESH_NUM_X_POINTS 5   // Don't use more than 15 points per axis, implementation limited.
+  #define UBL_MESH_NUM_Y_POINTS 5
   #define UBL_PROBE_PT_1_X 39       // These set the probe locations for when UBL does a 3-Point leveling
   #define UBL_PROBE_PT_1_Y 180      // of the mesh.
   #define UBL_PROBE_PT_2_X 39
@@ -915,8 +918,8 @@
 #define Z_SAFE_HOMING
 
 #if ENABLED(Z_SAFE_HOMING)
-  #define Z_SAFE_HOMING_X_POINT ((X_MIN_POS + X_MAX_POS) / 2)    // X point for Z homing when homing all axis (G28).
-  #define Z_SAFE_HOMING_Y_POINT ((Y_MIN_POS + Y_MAX_POS) / 2)    // Y point for Z homing when homing all axis (G28).
+  #define Z_SAFE_HOMING_X_POINT 100    // X point for Z homing when homing all axis (G28).
+  #define Z_SAFE_HOMING_Y_POINT  80    // Y point for Z homing when homing all axis (G28).
 #endif
 
 // Homing speeds (mm/m)
@@ -975,8 +978,8 @@
 #define PREHEAT_1_TEMP_BED     50 //MPCNC
 #define PREHEAT_1_FAN_SPEED     0 // Value from 0 to 255
 
-#define PREHEAT_2_TEMP_HOTEND 240
-#define PREHEAT_2_TEMP_BED    110
+#define PREHEAT_2_TEMP_HOTEND 230
+#define PREHEAT_2_TEMP_BED     70
 #define PREHEAT_2_FAN_SPEED     0 // Value from 0 to 255
 
 //
@@ -1000,7 +1003,7 @@
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
   // Specify a park position as { X, Y, Z }
-  #define NOZZLE_PARK_POINT { (X_MIN_POS + 10), (Y_MAX_POS - 10), 20 }
+  #define NOZZLE_PARK_POINT { 100, 80, 20 }
 #endif
 
 //
@@ -1186,7 +1189,7 @@
 // Use this option to override the number of step signals required to
 // move between next/prev menu items.
 //
-//#define ENCODER_STEPS_PER_MENU_ITEM 5
+#define ENCODER_STEPS_PER_MENU_ITEM 4
 
 /**
  * Encoder Direction Options
@@ -1480,7 +1483,7 @@
 // Servo deactivation
 //
 // With this option servos are powered only during movement, then turned off to prevent jitter.
-#define DEACTIVATE_SERVOS_AFTER_MOVE // BOB
+// #define DEACTIVATE_SERVOS_AFTER_MOVE
 
 /**********************************************************************\
  * Support for a filament diameter sensor

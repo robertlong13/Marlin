@@ -632,10 +632,10 @@
 #endif
 
 #if ENABLED(AUTO_BED_LEVELING_UBL)
-  #define UBL_MESH_MIN_X (X_MIN_POS + UBL_MESH_INSET)
-  #define UBL_MESH_MAX_X (X_MAX_POS - (UBL_MESH_INSET))
-  #define UBL_MESH_MIN_Y (Y_MIN_POS + UBL_MESH_INSET)
-  #define UBL_MESH_MAX_Y (Y_MAX_POS - (UBL_MESH_INSET))
+  #define UBL_MESH_MIN_X (0 + UBL_MESH_INSET)
+  #define UBL_MESH_MAX_X (200 - (UBL_MESH_INSET))
+  #define UBL_MESH_MIN_Y (0 + UBL_MESH_INSET)
+  #define UBL_MESH_MAX_Y (200 - (UBL_MESH_INSET))
 #endif
 
 // @section extras
@@ -659,7 +659,7 @@
 
 // The minimum pulse width (in µs) for stepping a stepper.
 // Set this if you find stepping unreliable, or if using a very fast CPU.
-#define MINIMUM_STEPPER_PULSE 0 // (µs) The smallest stepper pulse allowed
+#define MINIMUM_STEPPER_PULSE 4 // (µs) The smallest stepper pulse allowed
 
 // @section temperature
 
